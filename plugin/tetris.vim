@@ -1,5 +1,5 @@
 " Name: Tetris (game)
-" Version: 0.51
+" Version: 0.52
 " News: New timing, Resume bug fix, color-shape independence (fix)
 " Size must not exceed 8k. Ok, it will soon...:)
 " Maintainer, main author: Gergely Kontra <kgergely@mcl.hu>
@@ -94,12 +94,14 @@ fu! s:Resume()
  res 21
  setl ma
  se gcr=a:hor1-blinkon0 ve=all
+ se noea
 endf
 
 fun! s:Pause()
  let &gcr=s:gcr
  let &ve=s:ve
  setl noma
+ let &ea=s:wa
  exe bufwinnr(s:ow).'winc w'
  retu 1
 endf
@@ -121,20 +123,22 @@ fu! s:End()
  redir END
  norm 22GdG
  let &gcr=s:gcr
+ let &ea=s:wa
  se nolz
- exe 'sp' s:top10f
+ exe 'vsp' s:top10f
  if line('$')<10 || matchstr(getline('$'),'\d\+$')<s:score
   let numlen=40-strlen(s:score)
   setl ve=all ma
   cal append('$',s:name)
   exe "norm G".numlen."|a".(s:score)."\<Esc>"
   sil! cal s:Sort()
-  w
+  sil w
  el
   let s:pos=0
  en
- q|exe 'vert sv' s:top10f|1|setl bh=delete|vert res 43|noh
+ 1|setl bh=delete|vert res 43|noh
  exe 'match Search /.*\%'.s:pos.'l.*/'
+ echo | echo
  redr|echon 'Press a key to quit game'|cal getchar()|q
  let i=21|wh i|del|sl 40ms|let i=i-1|redr|endw|bd
  let &ve=s:ve
@@ -156,6 +160,7 @@ fu! s:Init()
  let s:starttime=localtime()
  let s:TICKS=0
  let s:gcr=&gcr
+ let s:wa=&ea
  let s:ve=&ve
  let s:lz=&lz
  let i=0|wh i<7|let s:sh{i}=0|let i=i+1|endw
@@ -197,7 +202,8 @@ fu! s:Init()
   let t0=t1|wh t1==t0|let t0=localtime()|cal s:Loop('h')|let s:CNT=s:CNT+1|endw
   let t0=localtime()
   let t1=t0|wh t1==t0|let t1=localtime()|endw
-  let one=1|let s:CNT2=0|let t0=t1|wh t1==t0
+  let one=1|let s:CNT2=0|let t0=t1
+  wh t1==t0
    let s:CNT2=s:CNT2+1|let t0=localtime()|exe 'sleep' one.'m'
   endw
   let s:DELAY=(1000/s:CNT)-((1000-s:CNT2)/s:CNT2)
@@ -214,7 +220,7 @@ fu! s:Init()
  let s:DTIME=300
  let s:COUNTER=(s:CNT*s:DTIME)/1000
  echon 'Delay:'.s:DELAY.' Counter: '.s:COUNTER
- if !exists('s:name')
+ if !exists('s:name') || s:name==''
   let s:name=strpart(inputdialog("What's your name?\nIt will be used in the top10 list"),0,30)
  en
  let s:mode=confirm('Game mode',"Traditional\nRotating")-1
@@ -266,11 +272,12 @@ fu! s:Main()
    let s:TICKS=s:TICKS+1|let cnt=s:COUNTER
    wh cnt
     let cnt=cnt-1
-    if getchar(1)
-     let c=nr2char(getchar())|let r=s:Loop(c)
+	let c=getchar(0)
+    if c
+     let c=nr2char(c)|let r=s:Loop(c)
      if r|retu r|en
      if s:DELAY2
-      exe 'sl' s:DELAY2
+      exe 'sl' s:DELAY2.'m'
      en
     el
      exe 'sl '.s:DELAY.'m'
