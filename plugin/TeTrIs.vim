@@ -1,50 +1,45 @@
 " Name: Tetris
-" Author: Gergely Kontra - Colour and Plugin by Michael Geddes
-" Version: 0.4
-let s:s='---Tetris by Gergely Kontra + Michael Geddes---'
-let s:WIDTH=10 
-let s:COUNTER=20 
-let s:SLEEP=30
-"let s:SPEEDMULT=100
-"let s:LVLMULT=1000
-let s:SPEEDMULT=1200
-let s:LVLMULT=14000
+" A vimmer said it is impossible.
+" Now, here is it!
+" Version: 0.5
+" Features: Colorful realtime game in pure vim6
+" News: New mode, top10, better colors, improved rotation, new timing,
+"	speedup, animations
+" Maintainer, main author: Gergely Kontra <kgergely@mcl.hu>
+" Co-autors, helpers:
+"	Michael Geddes		v0.4, color, Plugin support, code optimizing
+"	Peter ??? raindog		Timing help, bug reports
+"	If your name is not here, but should be, drop me a mail
+let s:s='---[Tetris game]---'
+let s:WIDTH=10|let s:NEXTXPOS=16|let s:NEXTYPOS=2
+let s:CLEAR=0|let s:CHECK=1|let s:DRAW=2
+let s:shs=7|let s:cols=7
 
-fu! s:Go(l,c)
- exe 'norm '.a:l.'G'.(1+a:c*2)."|a\<Esc>"
-endf
-" [], ==, {}, XX, @@, <>, $$
+fu! s:Put(l,c,pos,m)
+ let sh00=0x0f00|let sh01=0x2222|let sh02=0x0f00|let sh03=0x2222
+ let sh10=0x0660|let sh11=0x0660|let sh12=0x0660|let sh13=0x0040 "cheat
+ let sh20=0x0644|let sh21=0x0e20|let sh22=0x2260|let sh23=0x0470
+ let sh30=0x0740|let sh31=0x0622|let sh32=0x02e0|let sh33=0x4460
+ let sh40=0x4620|let sh41=0x0360|let sh42=0x4620|let sh43=0x0360
+ let sh50=0x2640|let sh51=0x0630|let sh52=0x2640|let sh53=0x0630
+ let sh60=0x0720|let sh61=0x2620|let sh62=0x2700|let sh63=0x2320
 
-let s:sgnre='\[]\|MM\|{}\|XX\|$$\|@@\|<>'
-let s:CLEAR=0 | let s:CHECK=1 | let s:DRAW=2
-let s:sgn0='[]'
-let s:sgn1='MM'
-let s:sgn2='{}'
-let s:sgn3='XX'
-let s:sgn4='@@'
-let s:sgn5='<>'
-let s:sgn6='$$'
-let s:sh00=0x0f00|let s:sh01=0x2222|let s:sh02=0x00f0|let s:sh03=0x8888
-let s:sh10=0x0660|let s:sh11=0x0660|let s:sh12=0x0660|let s:sh13=0x0660
-let s:sh20=0x0644|let s:sh21=0x0e20|let s:sh22=0x2260|let s:sh23=0x0470
-let s:sh30=0x0740|let s:sh31=0x0622|let s:sh32=0x02e0|let s:sh33=0x4460
-let s:sh40=0x4620|let s:sh41=0x0360|let s:sh42=0x0462|let s:sh43=0x06c0
-let s:sh50=0x0264|let s:sh51=0x0630|let s:sh52=0x2640|let s:sh53=0x0c60
-let s:sh60=0x0720|let s:sh61=0x2620|let s:sh62=0x2700|let s:sh63=0x2320
-let s:shs=7
-
-fu! s:Put(l,c,v,m,sgn)
- cal s:Go(a:l,a:c)
- let c=1|let r=1|let s=a:v
+ let sgn0='[]'|let sgn1='MM'|let sgn2='{}'|let sgn3='XX'|let sgn4='@@'|let sgn5='<>'|let sgn6='$$'
+ exe 'norm '.a:l.'G'.(a:c*2+1)."|a\<Esc>"
+ let c=1|let r=1
+ let s=(a:c!=s:NEXTXPOS)?(sh{b:sh}{a:pos}):(sh{b:nsh}{a:pos})
  wh r<5
   if s%2
-   if a:m && getline('.')[col('.')-1] !=' '|if a:m==2|echo "BUG"|en|retu 0|en
-   if a:m==2
-    exe "norm R".a:sgn."\<Esc>l"
-   elsei a:m==1
+   if a:m==s:DRAW
+    exe "norm R".sgn{a:c!=s:NEXTXPOS?(b:col):(b:ncol)}."\<Esc>l"
+   elsei a:m==s:CHECK
+    let ch=getline('.')[col('.')-1]
+    if (b:col<s:cols) && ch!='.' || (b:col==s:cols) && ch=='#'
+     retu 0
+    en
     norm 2l
    el
-    norm 2r l
+    norm 2r.l
    en
   el
    norm 2l
@@ -62,16 +57,27 @@ fu! s:Put(l,c,v,m,sgn)
 endf
 
 let s:i=24|let s:r=''|wh s:i|let s:r=s:r."\<C-y>"|let s:i=s:i-1|endw
+
 fu! s:Cnt(i)
- let m=search('^    \V##\('.s:sgnre.'\)\{'.s:WIDTH.'}##')
+ let m=search('^    ##[^#.]\{'.2*s:WIDTH.'}##')
  if !m|retu|en
  wh m>1
    exe 'norm' m.'GR'.s:r."\<Esc>"
    let m=m-1
  endw
+ match Wall /\./
  redr
- sleep 100m
+ sl 150m
+ match none
+ redr
+ sl 150m
  exe "norm 9G".a:i."\<C-a>"
+ let l=getline(9)
+ let s:score=0+strpart(l,match(l,'[1-9]'))
+ if s:score>=s:nxLevel
+  let s:COUNTER=s:COUNTER-1
+  let s:nxLevel=s:nxLevel+10
+ en
  cal s:Cnt(a:i*2)
 endf
 
@@ -79,166 +85,196 @@ fu! s:Resume()
  let s:ow=bufnr('%')
  exe bufwinnr(bufnr(s:s)).'winc w'
  res 21
- set gcr=a:hor1-blinkon0
+ setl ma
+ se gcr=a:hor1-blinkon0 ve=all
 endf
 
 fun! s:Pause()
  let &gcr=s:gcr
+ let &ve=s:ve
+ setl noma
  exe bufwinnr(s:ow).'winc w'
-
+ retu 1
 endf
-fu! s:Clear()
-   g/^    ##[^#]/ exe "norm 7\<bar>".(s:WIDTH*2)."r@:sleep 20m\<cr>:redr\<cr>"
-   sleep 200m
-   g/^    ##[^#]/ exe "norm 7\<bar>".(s:WIDTH*2)."r :sleep 20m\<cr>:redr\<cr>"
 
-   cal s:Put(b:NEXTYPOS,b:NEXTXPOS,s:sh{b:nsh}0,s:CLEAR,s:sgn{b:nsh})
-   cal s:Cnt(1)
-   let b:nsh=localtime()%s:shs
-   let b:sh=0
-   let b:pos=0
-   let b:x=5
-   let b:y=20
-endfu
+fu! s:Sort()
+ wh line('.')>1&&matchstr(getline(line('.')-1),'\d\+$')<s:score|move -2|endw
+ g/^$/d
+ 11,$d _
+endf
+let s:top10=expand('<sfile>:p:h').'/.tetris'
+" let s:top10=$HOME.'/.tetris'
+" problems under windows NT with $HOME variable :(
+
+fu! s:End()
+ norm 22GdG
+ let &gcr=s:gcr
+ se nolz
+ exe 'vs' s:top10
+ if line('$')<10 || matchstr(getline('$'),'\d\+$')<s:score
+  let name=strpart(inputdialog("You have made a high score!\nEnter your name"),0,30)
+  let numlen=40-strlen(s:score)
+  setl ve=all ma
+  cal append('$',name)
+  exe "norm G".numlen."|a".(s:score)."\<Esc>"
+  sil! cal s:Sort()
+  w
+ en
+ q|exe 'sv' s:top10|1|setl bh=delete|vert res 43|noh
+ redr|echon 'Press a key to quit game'|cal getchar()|q
+ let i=21|wh i|del|sl 40ms|let i=i-1|redr|endw|q
+ let &ve=s:ve
+ let &lz=s:lz
+endf
 
 fu! s:Init()
+ let s:nxLevel=10
  let s:ow=bufnr('%')
+ let s:score=0
  exe 'sp '.escape(s:s,' ').'|1,$d'
+ let b:col=0
+ let b:ncol=0
+ let s:time=0
  let b:nsh=0
  let b:sh=0
  let b:pos=0
- let b:x=5
+ let b:x=6
  let b:y=20
- let b:time=0
- let b:lvl=0
- let b:spd=0
- setl ve=all bh=delete bt=nowrite nf=""
  let s:gcr=&gcr
- set gcr=a:hor1-blinkon0
- exe "norm i    ##\<Esc>".s:WIDTH."a  \<Esc>2a#\<Esc>yy19pGo0\<C-d>    #\<Esc>".
+ let s:ve=&ve
+ let s:lz=&lz
+ se ve=all
+ setl bh=delete bt=nofile nf= gcr=a:hor1-blinkon0 lz
+ exe "norm i    ##\<Esc>".s:WIDTH."a..\<Esc>2a#\<Esc>yy19pGo0\<C-d>    #\<Esc>".
    \(2*s:WIDTH+4-1)."a#\<Esc>yy3pgg"
- hi Wall term=NONE cterm=NONE gui=NONE ctermfg=Green ctermbg=Green
- hi Wall gui=NONE guifg=Green guibg=Green
- syn match Wall "[#+|-]"
- hi Shape0 term=NONE cterm=NONE gui=NONE ctermfg=DarkGrey ctermbg=DarkGrey
- hi Shape0 gui=NONE guifg=DarkGrey guibg=DarkGrey
+ hi Bg term=reverse ctermfg=Black ctermbg=Black guifg=Black guibg=Black
+ syn match Bg "\."
+ hi Wall term=reverse ctermfg=DarkBlue ctermbg=DarkBlue guifg=DarkBlue guibg=DarkBlue
+ syn match Wall "#"
+ hi Shape0 ctermfg=DarkGrey ctermbg=DarkGrey guifg=DarkGrey guibg=DarkGrey
  syn match Shape0 "[[\]]"
- hi Shape1 term=NONE cterm=NONE gui=NONE ctermfg=DarkGreen ctermbg=DarkGreen guifg=DarkGreen guibg=DarkGreen
+ hi Shape1 term=reverse ctermfg=LightGreen ctermfg=LightGreen guifg=LightGreen guibg=LightGreen
  syn match Shape1 "MM"
- hi Shape2 term=NONE cterm=NONE gui=NONE ctermfg=DarkBlue ctermbg=DarkBlue guifg=DarkBlue guibg=DarkBlue
+ hi Shape2 term=reverse ctermfg=LightBlue ctermbg=LightBlue guifg=LightBlue guibg=LightBlue
  syn match Shape2 "{}"
- hi Shape3 term=NONE cterm=NONE gui=NONE ctermfg=DarkRed ctermbg=DarkRed guifg=DarkRed guibg=DarkRed
- syn match Shape3 "XX"
- hi Shape4 term=NONE cterm=NONE gui=NONE ctermfg=DarkYellow ctermbg=DarkYellow guifg=DarkYellow guibg=DarkYellow
+ hi Red term=reverse ctermfg=LightRed ctermbg=LightRed guifg=LightRed guibg=LightRed
+ syn match Red "XX"
+ hi Shape4 term=reverse ctermfg=DarkYellow ctermbg=DarkYellow guifg=DarkYellow guibg=DarkYellow
  syn match Shape4 "@@"
- hi Shape5 term=NONE cterm=NONE gui=NONE ctermfg=DarkMagenta ctermbg=DarkMagenta guifg=DarkMagenta guibg=DarkMagenta
+ hi Shape5 term=reverse ctermfg=DarkMagenta ctermbg=DarkMagenta guifg=DarkMagenta guibg=DarkMagenta
  syn match Shape5 "<>"
- hi Shape6 term=NONE cterm=NONE gui=NONE ctermfg=DarkCyan ctermbg=DarkCyan guifg=DarkCyan guibg=DarkCyan
+ hi Shape6 term=reverse ctermfg=DarkCyan ctermbg=DarkCyan guifg=DarkCyan guibg=DarkCyan
  syn match Shape6 "$\$"
 
-
  let n="\<Esc>9hji"
- let v="+--------+".n
- let f="|        |".n
- exe "norm 21\<C-w>_"
- exe "norm 1G40\<Bar>i".v.f.f.f.f.v."\<Esc>8G40\<Bar>iScore:\<Esc>j2h6i0\<Esc>"
- exe "norm jj40\<Bar>iKeys:\<Esc>j4hiLeft, Right: h l\<Esc>j15hiDown, Rotate: j k\<esc>"
- exe "norm j16hiDrop: <space>\<Esc>"
- exe "norm j12hiPause, Quit: p q\<esc>"
+ let v="##########".n
+ let f="#........#".n
+ exe "norm 21\<C-w>_50\<C-W>|"
+ exe "norm 1G32\<Bar>i".v.f.f.f.f.v."\<Esc>8G32\<Bar>iScore:\<Esc>j2h6i0\<Esc>"
+ exe "norm jj32\<Bar>iKeys:\<Esc>bjih,l: Left, Right\<Esc>2Fhjij,k: Down, Rotate\<Esc>"
+ exe "norm Fjji' ': Drop\<Esc>2F'ji+,=:  Speed up"
+ exe "norm 2F+jiq,q: Pause, Quit\<esc>"
+ if !exists('s:CNT')
+  let s:CNT=0
+  echon '' | echon 'Calibrating delay loop...'
+  let t0=localtime()
+  let t1=t0|wh t1==t0|let t1=localtime()|endw  " wait for start of a new second
+  let t0=t1|wh t1==t0|let t0=localtime()|cal s:Loop('h')|let s:CNT=s:CNT+1|endw
+ en
+ let s:COUNTER=s:CNT/3
+ let s:DELAY=1000/s:CNT-4
+" Just checking... 
+"  let CNT2=0
+"  let t0=localtime()
+"  let t1=t0|wh t1==t0|let t1=localtime()|endw  " wait for start of a new second
+"  let t0=t1|wh t1==t0|let t0=localtime()|exe "sl ".d."m"|let CNT2=CNT2+1|endw
+"  cal input('CNT='.CNT.' CNT2='.CNT2.' Counter:'.s:COUNTER)
+ let s:mode=confirm('Game mode',"Traditional\nRotating")-1
+endf
+
+fu! s:Loop(c)
+ let c=a:c
+ cal s:Put(b:y,b:x,b:pos,s:CLEAR)
+ if c=~ '[hjikl]'
+  let nx=b:x+((c=='h')?-1:((c=='l')?1:0))
+  let ny=b:y+((c=='j')?1:0)
+  let npos=(c!~'[ik]')?(b:pos):((b:pos+1)%4)
+  if s:Put(ny,nx,npos,s:CHECK)
+   let b:x=nx
+   let b:y=ny
+   let b:pos=npos
+  endif
+ elsei c==' '
+  wh s:Put(b:y+1,b:x,b:pos,s:CHECK)
+   let b:y=b:y+1
+  endw
+  "brea  No break It's a feature!
+ elsei c=="\<Esc>" || c=='q'
+  cal s:End()
+  retu 2
+ elsei c=~'[+=]'
+  let s:COUNTER=s:COUNTER-1
+ en
+ cal s:Put(b:y,b:x,b:pos,s:DRAW)
  redr
-endf
-fu! s:Ctr( lvl, speed)
-  let spd = s:COUNTER - (a:lvl * 5 + a:speed/10)
-  return  ((spd<5)? 5: spd)
-endf
-fu! s:Slp( lvl, speed)
-  return a:lvl<s:SLEEP?(s:SLEEP-(a:lvl) ):1
+ if c=='p'|retu s:Pause()|en
+ retu 0
 endf
 
 fu! s:Main()
  if bufnr(s:s)==-1 || bufwinnr(bufnr(s:s))==-1
-	 cal s:Init()
+  cal s:Init()
  el
- 	cal s:Resume()
+  cal s:Resume()
  en
 
- let b:NEXTXPOS=20 | let b:NEXTYPOS=2
- let b:CURRXPOS=6 | let b:CURRYPOS=1
+ let CURRXPOS=6 | let CURRYPOS=1
 
 
  wh 1
-   wh 1
-     let cnt=s:Ctr(b:lvl, b:spd)
-	 let tt=0
-     wh cnt>0
-       let cnt=cnt-1
-       if getchar(1)
-         let c=nr2char(getchar())
-         cal s:Put(b:y,b:x,s:sh{b:sh}{b:pos},s:CLEAR,s:sgn{b:sh})
-		 if c=~ '[hjikl]'
-			 let dx=(c=='h')?-1:((c=='l')?1:0)
-			 let dy=(c=='j')?1:0
-			 let dpos=(c!~'[ik]')?(b:pos):((b:pos+1)%4)
-			 if s:Put(b:y+dy,b:x+dx,s:sh{b:sh}{dpos},s:CHECK,s:sgn{b:sh})
-				let b:x=b:x+dx
-				let b:y=b:y+dy
-				let b:pos=dpos
-			 endif
-         elsei c==' '
-           wh s:Put(b:y+1,b:x,s:sh{b:sh}{b:pos},s:CHECK,s:sgn{b:sh})
-             let b:y=b:y+1
-           endw
-		   brea
-         elsei c=="\<Esc>" || c=='q'
-           cal s:End()
-           retu 0
-         en
-         cal s:Put(b:y,b:x,s:sh{b:sh}{b:pos},s:DRAW,s:sgn{b:sh})
-         redr
-         if c=='p'|retu s:Pause()|en
-       en
-	   let t= s:Slp(b:lvl, b:spd )
-       exe 'sl '.t.'m'
-	   let tt=tt+t+5
-     endw
-     cal s:Put(b:y,b:x,s:sh{b:sh}{b:pos},s:CLEAR,s:sgn{b:sh})
-     if !s:Put(b:y+1,b:x,s:sh{b:sh}{b:pos},s:CHECK,s:sgn{b:sh})
-       cal s:Put(b:y,b:x,s:sh{b:sh}{b:pos},s:DRAW,s:sgn{b:sh})
-       brea
-     en
-     let b:y=b:y+1
-     cal s:Put(b:y,b:x,s:sh{b:sh}{b:pos},s:DRAW,s:sgn{b:sh})
-     redr
-	 "let b:time=b:time+1
-	 let b:time=b:time+(tt/10)
-	 let b:spd = b:time / s:SPEEDMULT
-	 if (b:time / s:LVLMULT) > 1
-	 	let b:time=(b:time % s:LVLMULT)
-		let b:lvl=b:lvl+1
-     endif
-"	 exe "norm 17G40\<bar>R".b:time." ".b:spd." ".b:lvl."\<esc>"
+  wh 1
+   let cnt=s:COUNTER
+   wh cnt
+    let cnt=cnt-1
+    if getchar(1)
+     let c=nr2char(getchar())
+     let r=s:Loop(c)
+     if r|retu r|en
+    el
+     exe 'sl '.s:DELAY.'m'
+    en
    endw
-   cal s:Cnt(1)
-   cal s:Put(b:NEXTYPOS,b:NEXTXPOS,s:sh{b:nsh}0,s:CLEAR,s:sgn{b:nsh})
-   let b:sh=b:nsh
-   let b:nsh=localtime()%s:shs
-   let b:pos=0
-   cal s:Put(b:NEXTYPOS,b:NEXTXPOS,s:sh{b:nsh}0,s:DRAW,s:sgn{b:nsh})
-   let b:x=b:CURRXPOS|let b:y=b:CURRYPOS
-   if !s:Put(b:y,b:x,s:sh{b:sh}{b:pos},s:CHECK,s:sgn{b:sh})
-     cal s:End()
-     retu 0
-   endif
-   cal s:Put(b:y,b:x,s:sh{b:sh}{b:pos},s:DRAW,s:sgn{b:sh})
+   "timeout
+   cal s:Put(b:y,b:x,b:pos,s:CLEAR)
+   " try to move down
+   if !s:Put(b:y+1,b:x,b:pos,s:CHECK)
+    cal s:Put(b:y,b:x,b:pos,s:DRAW)
+    brea
+   en
+   let b:y=b:y+1
+   cal s:Put(b:y,b:x,b:pos,s:DRAW)
    redr
+  endw
+  cal s:Cnt(1)
+  if s:mode
+   exe "norm 1G7|\<C-V>19j2ld18lP"
+  en
+  cal s:Put(s:NEXTYPOS,s:NEXTXPOS,0,s:CLEAR)
+  let b:sh=b:nsh
+  let b:col=b:ncol
+  let b:nsh=(8*b:sh+1+localtime())%s:shs
+  let b:ncol=(8*b:col+1+localtime())%(s:cols)
+  let b:pos=0
+  cal s:Put(s:NEXTYPOS,s:NEXTXPOS,0,s:DRAW)
+  let b:x=CURRXPOS|let b:y=CURRYPOS
+  if !s:Put(b:y,b:x,b:pos,s:CHECK)
+   cal s:End()
+   retu 0
+  en
+  cal s:Put(b:y,b:x,b:pos,s:DRAW)
+  redr
  endw
 endf
 
-fu! s:End()
- norm 22GdG
- let i=21|wh i|del|sl 40ms|let i=i-1|redr|endw|bd
- let &gcr=s:gcr
-endf
-
 nmap <Leader>te :cal <SID>Main()<CR>
-
+" vi:sw=1
