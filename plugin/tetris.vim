@@ -1,15 +1,12 @@
 " Name: Tetris (game)
-" Version: 0.52
-" News: New timing, Resume bug fix, color-shape independence (fix)
-" Size must not exceed 8k. Ok, it will soon...:)
+" Version: 0.52fix
+" News: norm -> norm! (no remapping)
 " Maintainer, main author: Gergely Kontra <kgergely@mcl.hu>
 " Co-autors, helpers:
 "	Michael Geddes		v0.4, color, Plugin support, code optimizing
 "	Peter ??? raindog	Timing help, bug reports
 "	Dan Sharp		Bug reports, improvements
 "	If your name is not here, but should be, drop me a mail
-
-"	HELPME Send me the top10_stat file!
 
 " TODO FocusGained FocusLost Auto calibration during play
 let s:s='-Tetris_game-'
@@ -27,34 +24,34 @@ fu! s:Put(l,c,pos,m)
  let sh60=0x0720|let sh61=0x2620|let sh62=0x2700|let sh63=0x2320
 
  let sgn0='[]'|let sgn1='MM'|let sgn2='{}'|let sgn3='XX'|let sgn4='@@'|let sgn5='<>'|let sgn6='$$'
- exe 'norm '.a:l.'G'.(a:c*2+1)."|a\<Esc>"
+ exe 'norm! '.a:l.'G'.(a:c*2+1)."|a\<Esc>"
  let c=1|let r=1
  let s=(a:c!=s:NEXTXPOS)?(sh{b:sh}{a:pos}):(sh{b:nsh}{a:pos})
  wh r<5
   if s%2
    if a:m==s:DRAW
-    exe "norm R".sgn{a:c!=s:NEXTXPOS?(b:col):(b:ncol)}."\<Esc>l"
+    exe "norm! R".sgn{a:c!=s:NEXTXPOS?(b:col):(b:ncol)}."\<Esc>l"
    elsei a:m==s:CHECK
     let ch=getline('.')[col('.')-1]
     if (b:col<s:cols) && ch!='.' || (b:col==s:cols) && ch=='#'
      retu 0
     en
-    norm 2l
+    norm! 2l
    el
-    norm 2r.l
+    norm! 2r.l
    en
   el
-   norm 2l
+   norm! 2l
   en
   let c=c+1
   if c>4
    let c=1
-   norm 8hj
+   norm! 8hj
    let r=r+1
   en
   let s=s/2
  endw
- norm ggr#
+ norm! ggr#
  retu 1
 endf
 
@@ -64,7 +61,7 @@ fu! s:Cnt(i)
  let m=search('^    ##[^#.]\{'.2*s:WIDTH.'}##')
  if !m|retu|en
  wh m>1
-   exe 'norm' m.'GR'.s:r."\<Esc>"
+   exe 'norm!' m.'GR'.s:r."\<Esc>"
    let m=m-1
  endw
  match Wall /\./
@@ -121,7 +118,7 @@ fu! s:End()
  exe 'redir >>' s:top10.'_stat'
  echo|let i=0|wh i<7|echon 'Sh'.i.' '.s:sh{i}.' '|let i=i+1|endw|echo
  redir END
- norm 22GdG
+ norm! 22GdG
  let &gcr=s:gcr
  let &ea=s:wa
  se nolz
@@ -130,7 +127,7 @@ fu! s:End()
   let numlen=40-strlen(s:score)
   setl ve=all ma
   cal append('$',s:name)
-  exe "norm G".numlen."|a".(s:score)."\<Esc>"
+  exe "norm! G".numlen."|a".(s:score)."\<Esc>"
   sil! cal s:Sort()
   sil w
  el
@@ -189,11 +186,11 @@ fu! s:Init()
  let n="\<Esc>9hji"
  let v="##########".n
  let f="#........#".n
- exe "norm 21\<C-w>_50\<C-W>|"
- exe "norm 1G32\<Bar>i".v.f.f.f.f.v."\<Esc>8G32\<Bar>iScore:\<Esc>j2h6i0\<Esc>"
- exe "norm jj32\<Bar>iKeys:\<Esc>bjih,l: Left, Right\<Esc>2Fhjij,k: Down, Rotate\<Esc>"
- exe "norm Fjji' ': Drop\<Esc>2F'ji+,=:  Speed up"
- exe "norm 2F+jiq,q: Pause, Quit\<esc>"
+ exe "norm! 21\<C-w>_50\<C-W>|"
+ exe "norm! 1G32\<Bar>i".v.f.f.f.f.v."\<Esc>8G32\<Bar>iScore:\<Esc>j2h6i0\<Esc>"
+ exe "norm! jj32\<Bar>iKeys:\<Esc>bjih,l: Left, Right\<Esc>2Fhjij,k: Down, Rotate\<Esc>"
+ exe "norm! Fjji' ': Drop\<Esc>2F'ji+,=:  Speed up"
+ exe "norm! 2F+jiq,q: Pause, Quit\<esc>"
  if !exists('s:CNT')
   let s:CNT=0
   echon '' | echon 'Patience! Calibrating delay...'
